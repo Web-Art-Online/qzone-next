@@ -1,0 +1,6 @@
+.DS_Store
+
+tests
+src/__pycache__
+src/models/__pycache__
+*.png
