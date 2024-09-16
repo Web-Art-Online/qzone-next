@@ -6,7 +6,7 @@
 
 需要在本机上登录QQ客户端. 推荐使用[NapCatQQ](https://github.com/NapNeko/NapCatQQ).
 
-`async def get_instance(uin: Union[str, int], expiration: int = 4 * 60 * 60) -> Self` 获取Qzone实例，默认Cookie有效期为4h
+`async def get_instance(uin: Union[str, int], expiration: int = 4 * 60 * 60) -> Qzone:` 获取Qzone实例，默认Cookie有效期为4h
 
 `async def upload_image(self, base64: bytes) -> QzoneImage` 上传照片
 

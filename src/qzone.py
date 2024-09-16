@@ -9,8 +9,6 @@ from httpx import AsyncClient, Cookies
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 
-_instance: dict[str, "Qzone"] = {}
-
 
 class Qzone:
     uin: str
@@ -21,27 +19,6 @@ class Qzone:
         self.uin = uin
         self.cookies = cookies
         self.__updated = updated
-
-    async def get_instance(uin: Union[str, int], expiration: int = 4 * 60 * 60) -> Self:
-        uin = str(uin)
-        instance = _instance.get(uin)
-
-        if instance != None and time.time() - instance.__updated < expiration:
-            return instance
-
-        times = 0
-        while times <= 5:
-            try:
-                clientkey = await _get_clientkey(uin=uin)
-                cookies = await _get_cookies(uin=uin, clientkey=clientkey)
-                break
-            except:
-                await asyncio.sleep(3)
-                times += 1
-                continue
-
-        _instance[uin] = Qzone(uin=uin, cookies=cookies, updated=time.time())
-        return _instance[uin]
 
     async def upload_image(self, base64: bytes) -> QzoneImage:
         async with AsyncClient(timeout=60) as client:
@@ -163,3 +140,28 @@ async def _get_cookies(uin: str, clientkey: str) -> Cookies:
         resp = await client.get(login_url, headers={"User-Agent": UA}, follow_redirects=False)
         resp = await client.get(resp.headers["Location"], headers={"User-Agnet": UA}, follow_redirects=False)
         return resp.cookies
+
+
+_instance: dict[str, Qzone] = {}
+
+
+async def get_instance(uin: Union[str, int], expiration: int = 4 * 60 * 60) -> Qzone:
+    uin = str(uin)
+    instance = _instance.get(uin)
+
+    if instance != None and time.time() - instance.__updated < expiration:
+        return instance
+
+    times = 0
+    while times <= 5:
+        try:
+            clientkey = await _get_clientkey(uin=uin)
+            cookies = await _get_cookies(uin=uin, clientkey=clientkey)
+            break
+        except:
+            await asyncio.sleep(3)
+            times += 1
+            continue
+
+    _instance[uin] = Qzone(uin=uin, cookies=cookies, updated=time.time())
+    return _instance[uin]
