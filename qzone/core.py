@@ -1,9 +1,9 @@
 import asyncio
 import json
 import time
-from typing import Self, Union
+from typing import Union
 
-from .models.image import QzoneImage
+from qzone.models import QzoneImage
 
 from httpx import AsyncClient, Cookies
 
@@ -13,12 +13,12 @@ UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML,
 class Qzone:
     uin: str
     cookies: Cookies
-    __updated: int
+    _updated: int
 
     def __init__(self, uin: str, cookies: Cookies, updated: int):
         self.uin = uin
         self.cookies = cookies
-        self.__updated = updated
+        self._updated = updated
 
     async def upload_image(self, base64: bytes) -> QzoneImage:
         async with AsyncClient(timeout=60) as client:
@@ -149,7 +149,7 @@ async def get_instance(uin: Union[str, int], expiration: int = 4 * 60 * 60) -> Q
     uin = str(uin)
     instance = _instance.get(uin)
 
-    if instance != None and time.time() - instance.__updated < expiration:
+    if instance != None and time.time() - instance._updated < expiration:
         return instance
 
     times = 0
