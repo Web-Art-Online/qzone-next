@@ -55,10 +55,10 @@ class Qzone:
                 r = json.loads(
                     resp.text[resp.text.find('{'):resp.text.rfind('}') + 1])
                 if r.get("ret") != 0:
-                    raise RuntimeError(f"上传图片失败:{resp.text}")
+                    raise RuntimeError(f"上传图片失败[{resp.status_code}]:{resp.text}")
                 return QzoneImage.parse(r)
             else:
-                raise RuntimeError(f"上传图片失败:{resp.text}")
+                raise RuntimeError(f"上传图片失败[{resp.status_code}]:{resp.text}")
 
     async def publish(self, text: str, images: list[QzoneImage] = []) -> str:
         pic_bos = []
@@ -66,9 +66,8 @@ class Qzone:
         for image in images:
             pic_bos.append(image.pic_bo)
             richvals.append(image.richval)
-            break
 
-        async with AsyncClient() as client:
+        async with AsyncClient(timeout=60) as client:
             resp = await client.post(
                 url="https://user.qzone.qq.com/proxy/domain/taotao.qzone.qq.com/cgi-bin/emotion_cgi_publish_v6",
                 params={
@@ -92,13 +91,11 @@ class Qzone:
                     "pic_bo": ",".join(pic_bos) if len(images) != 0 else None,
                     "richtype": "1" if len(images) != 0 else None,
                     "richval": '\t'.join(richvals) if len(images) != 0 else None
-                }, headers={"User-Agent": UA})
+                }, headers={"User-Agent": UA, "Referer": f"https://user.qzone.qq.com/{self.uin}", "Origin": "https://user.qzone.qq.com"})
             if resp.status_code == 200:
                 return resp.json()['tid']
             else:
                 raise RuntimeError(resp.text)
-
-    """获取g_tk"""
 
     def get_g_tk(self) -> str:
         p_skey = self.cookies["p_skey"]
@@ -129,8 +126,6 @@ async def _get_clientkey(uin: str) -> str:
         if resp.status_code == 400:
             return RuntimeError(f"获取clientkey失败: {resp.text}")
         return resp.cookies["clientkey"]
-
-"""获取skey和p_skey"""
 
 
 async def _get_cookies(uin: str, clientkey: str) -> Cookies:
