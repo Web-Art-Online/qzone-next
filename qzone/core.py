@@ -61,6 +61,8 @@ class Qzone:
                 raise RuntimeError(f"上传图片失败[{resp.status_code}]:{resp.text}")
 
     async def publish(self, text: str, images: list[QzoneImage] = []) -> str:
+        if not text and not images:
+            return None
         pic_bos = []
         richvals = []
         for image in images:
@@ -120,8 +122,8 @@ async def _get_clientkey(uin: str) -> str:
     async with AsyncClient(timeout=15) as client:
         resp = await client.get(local_key_url, headers={"User-Agent": UA})
         pt_local_token = resp.cookies["pt_local_token"]
-        client_key_url = f"https://localhost.ptlogin2.qq.com:4301/pt_get_st?clientuin={
-            uin}&callback=ptui_getst_CB&r=0.7284667321181328&pt_local_tk={pt_local_token}"
+        client_key_url = f"https://localhost.ptlogin2.qq.com:4301/pt_get_st?clientuin={uin}&callback=ptui_getst_CB" \
+            f"&r=0.7284667321181328&pt_local_tk={pt_local_token}"
         resp = await client.get(client_key_url, headers={"User-Agent": UA, "Referer": "https://ssl.xui.ptlogin2.qq.com/"})
         if resp.status_code == 400:
             return RuntimeError(f"获取clientkey失败: {resp.text}")
