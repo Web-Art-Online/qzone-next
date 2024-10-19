@@ -1,24 +1,21 @@
-import asyncio
 import json
-import time
-from typing import Union
 
 from qzone.models import QzoneImage
 
-from httpx import AsyncClient, Cookies
+from httpx import Client, AsyncClient
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 
 
 class Qzone:
     uin: str
-    cookies: Cookies
-    _updated: int
+    cookies: dict
 
-    def __init__(self, uin: str, cookies: Cookies, updated: int):
-        self.uin = uin
-        self.cookies = cookies
-        self._updated = updated
+    def __init__(self, onebot_url: str, uin: str | int):
+        self.uin = str(uin)
+        with Client() as client:
+            self.cookies = dict(c.split("=") for c in json.loads(
+                client.get(f"{onebot_url}/get_cookies?domain=user.qzone.qq.com").text)["data"]["cookies"].replace(" ", "").split(";"))
 
     async def upload_image(self, base64: bytes) -> QzoneImage:
         async with AsyncClient(timeout=60) as client:
@@ -105,60 +102,3 @@ class Qzone:
         for i in range(len(p_skey)):
             hash_val += (hash_val << 5) + ord(p_skey[i])
         return str(hash_val & 2147483647)
-
-    def __hash__(self):
-        return hash(self.uin)
-
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.uin == other.uin
-        else:
-            return False
-
-
-async def _get_clientkey(uin: str) -> str:
-    local_key_url = "https://xui.ptlogin2.qq.com/cgi-bin/xlogin?s_url=https%3A%2F%2Fhuifu.qq.com%2Findex.html&style=20&appid=715021417" \
-        "&proxy_url=https%3A%2F%2Fhuifu.qq.com%2Fproxy.html"
-    async with AsyncClient(timeout=15) as client:
-        resp = await client.get(local_key_url, headers={"User-Agent": UA})
-        pt_local_token = resp.cookies["pt_local_token"]
-        client_key_url = f"https://localhost.ptlogin2.qq.com:4301/pt_get_st?clientuin={uin}&callback=ptui_getst_CB" \
-            f"&r=0.7284667321181328&pt_local_tk={pt_local_token}"
-        resp = await client.get(client_key_url, headers={"User-Agent": UA, "Referer": "https://ssl.xui.ptlogin2.qq.com/"})
-        if resp.status_code == 400:
-            return RuntimeError(f"获取clientkey失败: {resp.text}")
-        return resp.cookies["clientkey"]
-
-
-async def _get_cookies(uin: str, clientkey: str) -> Cookies:
-    login_url = f"https://ssl.ptlogin2.qq.com/jump?ptlang=1033&clientuin={uin}&clientkey={clientkey}" \
-        f"&u1=https%3A%2F%2Fuser.qzone.qq.com%2F{uin}%2Finfocenter&keyindex=19"
-    async with AsyncClient(timeout=15) as client:
-        resp = await client.get(login_url, headers={"User-Agent": UA}, follow_redirects=False)
-        resp = await client.get(resp.headers["Location"], headers={"User-Agnet": UA}, follow_redirects=False)
-        return resp.cookies
-
-
-_instance: dict[str, Qzone] = {}
-
-
-async def get_instance(uin: Union[str, int], expiration: int = 4 * 60 * 60) -> Qzone:
-    uin = str(uin)
-    instance = _instance.get(uin)
-
-    if instance != None and time.time() - instance._updated < expiration:
-        return instance
-
-    times = 0
-    while times <= 5:
-        try:
-            clientkey = await _get_clientkey(uin=uin)
-            cookies = await _get_cookies(uin=uin, clientkey=clientkey)
-            break
-        except:
-            await asyncio.sleep(3)
-            times += 1
-            continue
-
-    _instance[uin] = Qzone(uin=uin, cookies=cookies, updated=time.time())
-    return _instance[uin]

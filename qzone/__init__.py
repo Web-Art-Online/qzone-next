@@ -1,1 +1,1 @@
-from .core import Qzone, get_instance
+from .core import Qzone
